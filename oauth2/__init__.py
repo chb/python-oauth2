@@ -402,7 +402,7 @@ class Request(dict):
     def to_postdata(self):
         """Serialize as post data for a POST request."""
         d = {}
-        for k, v in self.iteritems():
+        for k, v in self.get_nonoauth_parameters().iteritems():
             d[k.encode('utf-8')] = to_utf8_optional_iterator(v)
 
         # tell urlencode to deal with sequence values and map them correctly
@@ -419,7 +419,7 @@ class Request(dict):
             # must be python <2.5
             query = base_url[4]
         query = parse_qs(query)
-        for k, v in self.items():
+        for k, v in self.get_nonoauth_parameters().iteritems():
             query.setdefault(k, []).append(v)
         
         try:
@@ -670,12 +670,14 @@ class Client(httplib2.Http):
 
         realm = schema + ':' + hierpart + host
 
+        # Get request data, as the body or as the querystring
         if is_form_encoded:
             body = req.to_postdata()
         elif method == "GET":
             uri = req.to_url()
-        else:
-            headers.update(req.to_header(realm=realm))
+
+        # Always sign the headers
+        headers.update(req.to_header(realm=realm))
 
         return httplib2.Http.request(self, uri, method=method, body=body,
             headers=headers, redirections=redirections,
